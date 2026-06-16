@@ -68,7 +68,23 @@ onMounted(fetchContacts)
   <div class="min-h-screen bg-gray-50">
     <!-- Navbar -->
     <nav class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-      <h1 class="text-lg font-bold text-gray-800">Contacts</h1>
+      <div class="flex items-center gap-6">
+        <h1 class="text-lg font-bold text-gray-800">Contact List</h1>
+        <div class="flex gap-1">
+          <RouterLink
+            to="/contacts"
+            class="text-sm px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 font-medium transition"
+          >
+            Contacts
+          </RouterLink>
+          <RouterLink
+            to="/logs"
+            class="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition"
+          >
+            Logs
+          </RouterLink>
+        </div>
+      </div>
       <div class="flex items-center gap-4">
         <span class="text-sm text-gray-500">{{ auth.user?.name }}</span>
         <button
@@ -77,6 +93,7 @@ onMounted(fetchContacts)
         >
           Logout
         </button>
+      </div>
       </div>
     </nav>
 
