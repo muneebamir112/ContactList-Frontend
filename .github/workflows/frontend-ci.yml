@@ -28,21 +28,26 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
-      - name: Deploy to VPS
+      - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+
+      - name: Add VPS to known hosts
+        run: |
           ssh-keyscan -p ${{ secrets.VPS_PORT }} -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-          echo "Deploy path: ${{ secrets.VPS_DEPLOY_PATH }}"
-
+      - name: Test SSH connection
+        run: |
           ssh -i ~/.ssh/deploy_key \
             -p ${{ secrets.VPS_PORT }} \
             -o StrictHostKeyChecking=no \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            "mkdir -p ${{ secrets.VPS_DEPLOY_PATH }}"
+            "echo SSH connection successful && mkdir -p ${{ secrets.VPS_DEPLOY_PATH }}"
 
+      - name: Deploy with rsync
+        run: |
           rsync -avz --delete \
             --exclude='.git' \
             -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.VPS_PORT }} -o StrictHostKeyChecking=no" \
