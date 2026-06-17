@@ -67,7 +67,7 @@ function openEdit(contact) {
 
 async function deleteContact(id) {
   if (!confirm('Delete this contact?')) return
-  await api.delete(`/contacts/${id}`)
+  await api.delete('/contacts/' + id)
   const page = contacts.value.length === 1 && currentPage.value > 1 ? currentPage.value - 1 : currentPage.value
   fetchContacts(page)
 }
@@ -87,7 +87,6 @@ onMounted(() => fetchContacts(1))
 
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Navbar -->
     <nav class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
       <div class="flex items-center gap-6">
         <h1 class="text-lg font-bold text-gray-800">Contact List</h1>
@@ -119,7 +118,6 @@ onMounted(() => fetchContacts(1))
     </nav>
 
     <div class="max-w-3xl mx-auto px-4 py-8">
-      <!-- Search + Add -->
       <div class="flex gap-3 mb-6">
         <input
           v-model="search"
@@ -135,20 +133,14 @@ onMounted(() => fetchContacts(1))
         </button>
       </div>
 
-      <!-- Loading -->
       <div v-if="loading" class="text-center text-gray-400 py-16">Loading…</div>
 
-      <!-- Empty -->
-      <div
-        v-else-if="filtered().length === 0"
-        class="text-center text-gray-400 py-16"
-      >
+      <div v-else-if="filtered().length === 0" class="text-center text-gray-400 py-16">
         <p class="text-4xl mb-3">📋</p>
         <p class="text-sm">{{ search ? 'No contacts match your search.' : 'No contacts yet. Add your first one!' }}</p>
       </div>
 
-      <!-- Contact list -->
-      <template v-else>
+      <div v-else>
         <ul class="space-y-3">
           <li
             v-for="contact in filtered()"
@@ -156,9 +148,7 @@ onMounted(() => fetchContacts(1))
             class="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between shadow-sm hover:shadow-md transition"
           >
             <div class="flex items-center gap-4">
-              <div
-                class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 font-bold flex items-center justify-center text-sm select-none"
-              >
+              <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 font-bold flex items-center justify-center text-sm select-none">
                 {{ contact.name.charAt(0).toUpperCase() }}
               </div>
               <div>
@@ -184,7 +174,6 @@ onMounted(() => fetchContacts(1))
           </li>
         </ul>
 
-        <!-- Pagination -->
         <div v-if="lastPage > 1" class="flex items-center justify-between mt-4">
           <p class="text-xs text-gray-400">Showing {{ from }}–{{ to }} of {{ total }} contacts</p>
           <div class="flex items-center gap-1">
@@ -200,9 +189,7 @@ onMounted(() => fetchContacts(1))
               :key="page"
               @click="goToPage(page)"
               class="px-3 py-1.5 text-xs rounded-lg border transition"
-              :class="page === currentPage
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'border-gray-200 text-gray-500 hover:bg-gray-50'"
+              :class="page === currentPage ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'"
             >
               {{ page }}
             </button>
@@ -215,10 +202,9 @@ onMounted(() => fetchContacts(1))
             </button>
           </div>
         </div>
-      </template>
+      </div>
     </div>
 
-    <!-- Modal -->
     <ContactModal
       v-if="showModal"
       :contact="editingContact"
