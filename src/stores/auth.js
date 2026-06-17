@@ -38,5 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = data
   }
 
-  return { token, user, register, login, logout, fetchUser }
+  const isAdmin = () => !!user.value?.is_admin
+
+  return { token, user, isAdmin, register, login, logout, fetchUser }
 })

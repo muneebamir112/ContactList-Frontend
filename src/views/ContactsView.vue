@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import api from '../api/axios'
@@ -13,6 +13,10 @@ const loading = ref(true)
 const search = ref('')
 const showModal = ref(false)
 const editingContact = ref(null)
+const currentPage = ref(1)
+const lastPage = ref(1)
+const total = ref(0)
+const perPage = ref(10)
 
 const filtered = () =>
   contacts.value.filter(
@@ -22,11 +26,33 @@ const filtered = () =>
       (c.phone && c.phone.includes(search.value)),
   )
 
-async function fetchContacts() {
+const pageNumbers = computed(() => {
+  const range = []
+  const delta = 2
+  const left = Math.max(1, currentPage.value - delta)
+  const right = Math.min(lastPage.value, currentPage.value + delta)
+  for (let i = left; i <= right; i++) range.push(i)
+  return range
+})
+
+const from = computed(() => (currentPage.value - 1) * perPage.value + 1)
+const to = computed(() => Math.min(currentPage.value * perPage.value, total.value))
+
+async function fetchContacts(page = 1) {
   loading.value = true
-  const { data } = await api.get('/contacts')
-  contacts.value = data
+  const { data } = await api.get('/contacts', { params: { page } })
+  contacts.value = data.data
+  currentPage.value = data.current_page
+  lastPage.value = data.last_page
+  total.value = data.total
+  perPage.value = data.per_page
   loading.value = false
+}
+
+function goToPage(page) {
+  if (page < 1 || page > lastPage.value) return
+  search.value = ''
+  fetchContacts(page)
 }
 
 function openAdd() {
@@ -42,18 +68,13 @@ function openEdit(contact) {
 async function deleteContact(id) {
   if (!confirm('Delete this contact?')) return
   await api.delete(`/contacts/${id}`)
-  contacts.value = contacts.value.filter((c) => c.id !== id)
+  const page = contacts.value.length === 1 && currentPage.value > 1 ? currentPage.value - 1 : currentPage.value
+  fetchContacts(page)
 }
 
-function onSaved(contact) {
-  const idx = contacts.value.findIndex((c) => c.id === contact.id)
-  if (idx !== -1) {
-    contacts.value[idx] = contact
-  } else {
-    contacts.value.push(contact)
-    contacts.value.sort((a, b) => a.name.localeCompare(b.name))
-  }
+function onSaved() {
   showModal.value = false
+  fetchContacts(currentPage.value)
 }
 
 async function logout() {
@@ -61,7 +82,7 @@ async function logout() {
   router.push('/login')
 }
 
-onMounted(fetchContacts)
+onMounted(() => fetchContacts(1))
 </script>
 
 <template>
@@ -78,10 +99,11 @@ onMounted(fetchContacts)
             Contacts
           </RouterLink>
           <RouterLink
-            to="/logs"
+            v-if="auth.isAdmin()"
+            to="/admin"
             class="text-sm px-3 py-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition"
           >
-            Logs
+            Admin Panel
           </RouterLink>
         </div>
       </div>
@@ -93,7 +115,6 @@ onMounted(fetchContacts)
         >
           Logout
         </button>
-      </div>
       </div>
     </nav>
 
@@ -127,40 +148,74 @@ onMounted(fetchContacts)
       </div>
 
       <!-- Contact list -->
-      <ul v-else class="space-y-3">
-        <li
-          v-for="contact in filtered()"
-          :key="contact.id"
-          class="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between shadow-sm hover:shadow-md transition"
-        >
-          <div class="flex items-center gap-4">
-            <div
-              class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 font-bold flex items-center justify-center text-sm select-none"
-            >
-              {{ contact.name.charAt(0).toUpperCase() }}
+      <template v-else>
+        <ul class="space-y-3">
+          <li
+            v-for="contact in filtered()"
+            :key="contact.id"
+            class="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between shadow-sm hover:shadow-md transition"
+          >
+            <div class="flex items-center gap-4">
+              <div
+                class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 font-bold flex items-center justify-center text-sm select-none"
+              >
+                {{ contact.name.charAt(0).toUpperCase() }}
+              </div>
+              <div>
+                <p class="font-medium text-gray-800 text-sm">{{ contact.name }}</p>
+                <p v-if="contact.email" class="text-gray-500 text-xs">{{ contact.email }}</p>
+                <p v-if="contact.phone" class="text-gray-400 text-xs">{{ contact.phone }}</p>
+              </div>
             </div>
-            <div>
-              <p class="font-medium text-gray-800 text-sm">{{ contact.name }}</p>
-              <p v-if="contact.email" class="text-gray-500 text-xs">{{ contact.email }}</p>
-              <p v-if="contact.phone" class="text-gray-400 text-xs">{{ contact.phone }}</p>
+            <div class="flex gap-2">
+              <button
+                @click="openEdit(contact)"
+                class="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-3 py-1 rounded-lg border border-indigo-200 hover:bg-indigo-50 transition"
+              >
+                Edit
+              </button>
+              <button
+                @click="deleteContact(contact.id)"
+                class="text-xs text-red-500 hover:text-red-700 font-medium px-3 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition"
+              >
+                Delete
+              </button>
             </div>
-          </div>
-          <div class="flex gap-2">
+          </li>
+        </ul>
+
+        <!-- Pagination -->
+        <div v-if="lastPage > 1" class="flex items-center justify-between mt-4">
+          <p class="text-xs text-gray-400">Showing {{ from }}–{{ to }} of {{ total }} contacts</p>
+          <div class="flex items-center gap-1">
             <button
-              @click="openEdit(contact)"
-              class="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-3 py-1 rounded-lg border border-indigo-200 hover:bg-indigo-50 transition"
+              @click="goToPage(currentPage - 1)"
+              :disabled="currentPage === 1"
+              class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
-              Edit
+              Prev
             </button>
             <button
-              @click="deleteContact(contact.id)"
-              class="text-xs text-red-500 hover:text-red-700 font-medium px-3 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition"
+              v-for="page in pageNumbers"
+              :key="page"
+              @click="goToPage(page)"
+              class="px-3 py-1.5 text-xs rounded-lg border transition"
+              :class="page === currentPage
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'border-gray-200 text-gray-500 hover:bg-gray-50'"
             >
-              Delete
+              {{ page }}
+            </button>
+            <button
+              @click="goToPage(currentPage + 1)"
+              :disabled="currentPage === lastPage"
+              class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              Next
             </button>
           </div>
-        </li>
-      </ul>
+        </div>
+      </template>
     </div>
 
     <!-- Modal -->
